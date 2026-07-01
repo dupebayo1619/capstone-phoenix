@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migration
+  namespace: taskapp
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: hook-succeeded
+spec:
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        app: taskapp
+        component: migration
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migration
+          image: ghcr.io/ts-a-devops/taskapp-backend:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DATABASE_URL
+              value: postgresql://postgres:postgres123@postgres/taskapp
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taskapp-secrets
+                  key: SECRET_KEY
+            - name: FLASK_APP
+              value: run.py
+          command:
+            - flask
+            - db
+            - upgrade
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 256Mi
+              cpu: 200m
